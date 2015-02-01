@@ -1,3 +1,28 @@
+/*
+ * Aurora: https://github.com/pup05/SmartMatrixLife
+ * Copyright (c) 2014 Jason Coon
+ *
+ * Portions of this code are adapted from Andrew: http://pastebin.com/f22bfe94d
+ * which, in turn, was "Adapted from the Life example on the Processing.org site"
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 #include<SmartMatrix_32x32.h>
 #include<FastLED.h>
 
@@ -5,16 +30,15 @@
 
 CRGB leds[NUM_LEDS];
 
+boolean blur = true;
+
 CRGBPalette16 currentPalette = RainbowColors_p;
 
 class Cell {
 public:
-byte alive : 
-  1;
-byte prev : 
-  1;
-byte hue: 
-  6;  
+  byte alive =  1;
+  byte prev =  1;
+  byte hue = 6;  
   byte brightness;
 };
 
@@ -37,7 +61,15 @@ void loop() {
   // Display current generation
   for (int i = 0; i < MATRIX_WIDTH; i++) {
     for (int j = 0; j < MATRIX_HEIGHT; j++) {
-      leds[XY(i, j)] = ColorFromPalette(currentPalette, world[i][j].hue * 4), world[i][j].brightness);
+      if(blur) {
+        leds[XY(i, j)] = ColorFromPalette(currentPalette, world[i][j].hue * 4, world[i][j].brightness);
+      }
+      else if (world[i][j].alive == 1) {
+        leds[XY(i, j)] = ColorFromPalette(currentPalette, world[i][j].hue * 4, world[i][j].brightness);
+      }
+      else {
+        leds[XY(i, j)] = CRGB::Black;
+      }
     }
   }
 
@@ -107,4 +139,11 @@ int neighbours(int x, int y) {
 uint16_t XY( uint8_t x, uint8_t y) {
   return (y * MATRIX_WIDTH) + x;
 }
+
+
+
+
+
+
+
 
