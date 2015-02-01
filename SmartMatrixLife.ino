@@ -23,16 +23,28 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include<SmartMatrix_32x32.h>
-#include<FastLED.h>
+#include <SmartMatrix_32x32.h>
+#include <FastLED.h>
 
 #define NUM_LEDS (MATRIX_WIDTH * MATRIX_HEIGHT)
 
 CRGB leds[NUM_LEDS];
 
+// blur between each frame of the simulation
 boolean blur = true;
 
-CRGBPalette16 currentPalette = RainbowColors_p;
+// adjust the amount of blur
+float blurAmount = 0.5;
+
+boolean randomBlur = true;
+
+// alternate between blurred and not blurred each time a new world is filled
+boolean alternateBlur = true;
+
+// switch to a random palette each time a new world is filled
+boolean switchPalette = true;
+
+CRGBPalette16 currentPalette = PartyColors_p;
 
 class Cell {
 public:
@@ -56,6 +68,15 @@ void loop() {
     fill_solid(leds, NUM_LEDS, CRGB::Black);
 
     randomFillWorld();
+
+    if(alternateBlur)
+        blur = !blur;
+
+    if(switchPalette)
+        chooseNewPalette();
+
+    if(randomBlur)
+        blurAmount = ((float)random(50, 90)) / 100.0;
   }
 
   // Display current generation
@@ -78,7 +99,7 @@ void loop() {
     for (int y = 0; y < MATRIX_HEIGHT; y++) {
       // Default is for cell to stay the same
       if (world[x][y].brightness > 0 && world[x][y].prev == 0)
-        world[x][y].brightness *= 0.9;
+        world[x][y].brightness *= blurAmount;
       int count = neighbours(x, y);
       if (count == 3 && world[x][y].prev == 0) {
         // A new cell is born
@@ -140,10 +161,39 @@ uint16_t XY( uint8_t x, uint8_t y) {
   return (y * MATRIX_WIDTH) + x;
 }
 
+void chooseNewPalette() {
+    switch(random(0, 8)) {
+        case 0:
+            currentPalette = CloudColors_p;
+            break;
 
+        case 1:
+            currentPalette = ForestColors_p;
+            break;
 
+        case 2:
+            currentPalette = HeatColors_p;
+            break;
 
+        case 3:
+            currentPalette = LavaColors_p;
+            break;
 
+        case 4:
+            currentPalette = OceanColors_p;
+            break;
 
+        case 5:
+            currentPalette = PartyColors_p;
+            break;
 
+        case 6:
+            currentPalette = RainbowColors_p;
+            break;
 
+        case 7:
+        default:
+            currentPalette = RainbowStripeColors_p;
+            break;
+    }
+}
