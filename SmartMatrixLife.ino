@@ -60,7 +60,7 @@ int generation = 0;
 
 void setup() {
   LEDS.addLeds<SMART_MATRIX>(leds, NUM_LEDS);
-  LEDS.setBrightness(96);
+  LEDS.setBrightness(32);
 }
 
 void loop() {
@@ -126,7 +126,7 @@ void loop() {
     generation = 0;
 
   LEDS.show();
-  LEDS.delay(60);
+  LEDS.delay(33);
 }
 
 void randomFillWorld() {
