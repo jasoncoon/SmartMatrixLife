@@ -82,7 +82,7 @@ Controls (left to right, top to bottom):
 * Next Palette
 * Randomly Fill World
 
-###### Acknowledgements
+##### Acknowledgements
 
 Portions of this code are adapted from Andrew: http://pastebin.com/f22bfe94d
 which, in turn, was "Adapted from the Life example on the Processing.org site"
