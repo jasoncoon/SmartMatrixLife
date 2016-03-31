@@ -118,7 +118,7 @@ unsigned long decodeIRCode() {
   if (irReceiver.decode(&results)) {
     Serial.println(results.value, HEX);
     
-    delay(20);
+//    delay(20);
 
     // Prepare to receive the next IR code
     irReceiver.resume();

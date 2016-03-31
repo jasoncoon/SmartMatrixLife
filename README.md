@@ -12,10 +12,11 @@ SmartMatrix: http://pixelmatix.com
 ##### Controls (for all remotes):
 
 * When not paused:
-  * The up and down arrow buttons adjust the simulation speed.
   * The pause/play and select buttons pause the simulation.
   * The "Randomly Fill World" button clears and fills the world with random cells.
-* When paused: 
+  * The up and down arrow buttons adjust the simulation speed.
+  * The left and right arrow buttons adjust the blur amount.
+* When paused:
   * The pause/play button will unpause the simulation.
   * The arrow buttons move the cursor.
   * The select button toggles the highlighted cell.
@@ -88,5 +89,5 @@ Controls (left to right, top to bottom):
 
 Portions of this code are adapted from Andrew: http://pastebin.com/f22bfe94d
 which, in turn, was "Adapted from the Life example on the Processing.org site"
- 
+
 Made much more colorful by J.B. Langston: https://github.com/jblang/aurora/commit/6db5a884e3df5d686445c4f6b669f1668841929b

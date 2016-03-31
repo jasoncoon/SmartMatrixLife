@@ -28,6 +28,7 @@
 #include <SmartMatrix3.h>
 #include <FastLED.h>
 #include <IRremote.h>
+#include "Cell.h"
 
 #define IR_RECV_PIN 18
 
@@ -43,33 +44,48 @@ const uint8_t kDmaBufferRows = 4;       // known working: 2-4, use 2 to save mem
 const uint8_t kPanelType = SMARTMATRIX_HUB75_32ROW_MOD16SCAN;   // use SMARTMATRIX_HUB75_16ROW_MOD8SCAN for common 16x32 panels
 const uint8_t kMatrixOptions = (SMARTMATRIX_OPTIONS_NONE);      // see http://docs.pixelmatix.com/SmartMatrix for options
 const uint8_t kBackgroundLayerOptions = (SM_BACKGROUND_OPTIONS_NONE);
+const uint8_t kIndexedLayerOptions = (SM_INDEXED_OPTIONS_NONE);
 
 SMARTMATRIX_ALLOCATE_BUFFERS(matrix, kMatrixWidth, kMatrixHeight, kRefreshDepth, kDmaBufferRows, kPanelType, kMatrixOptions);
 SMARTMATRIX_ALLOCATE_BACKGROUND_LAYER(backgroundLayer, kMatrixWidth, kMatrixHeight, COLOR_DEPTH, kBackgroundLayerOptions);
+SMARTMATRIX_ALLOCATE_INDEXED_LAYER(indexedLayer, kMatrixWidth, kMatrixHeight, COLOR_DEPTH, kIndexedLayerOptions);
 
 #define NUM_LEDS (kMatrixWidth * kMatrixHeight)
 
 rgb24 *buffer;
 
-// blur between each frame of the simulation
-boolean blur = false;
-
-// adjust the amount of blur
-float blurAmount = 0.5;
+#define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 
 boolean isPaused = false;
 
 boolean isCleared = false;
 
-uint8_t cursorX = 0;
-uint8_t cursorY = 0;
+uint8_t cursorX = kMatrixWidth / 2;
+uint8_t cursorY = kMatrixHeight / 2;
 
 uint8_t brightnessIndex = 2;
+const uint8_t brightnessMap[] = { 16, 32, 64, 128, 255 };
+const uint8_t brightnessCount = ARRAY_SIZE(brightnessMap);
 
-const uint8_t brightnessCount = 5;
-const uint8_t brightnessMap[brightnessCount] = { 16, 32, 64, 128, 255 };
+const uint8_t delayMap[] = { 255, 224, 192, 160, 128, 96, 64, 32, 16, 8, 0 };
+const uint8_t delayCount = ARRAY_SIZE(delayMap);
+uint8_t delayIndex = delayCount - 2;
+elapsedMillis sinceLastUpdate = 0;
 
-uint8_t currentDelay = 33;
+const float blurMap[] = { 0.0f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 0.92f, 0.94f, 0.96f, 0.98f, 0.99f, 1.0f };
+const uint8_t blurCount = ARRAY_SIZE(blurMap);
+uint8_t blurIndex = 3;
+
+uint8_t cyclesWithoutBirth = 0;
+
+// automatically reset the world if there are no new births for a while
+boolean autoReset = false;
+
+boolean showingIndicator = false;
+elapsedMillis sinceIndicatorShown = 0;
+char indicatorText[10];
+
+const uint16_t indicatorDuration = 1000;
 
 CRGBPalette16 palettes[] = {
   RainbowColors_p,
@@ -82,20 +98,22 @@ CRGBPalette16 palettes[] = {
   LavaColors_p,
 };
 
+char const * paletteNames[] = {
+  "Rainbow",
+  "Rnbw Strp",
+  "Ocean",
+  "Cloud",
+  "Forest",
+  "Party",
+  "Heat",
+  "Lava",
+};
+
 uint8_t currentPaletteIndex = 0;
 
-#define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
 const uint8_t paletteCount = ARRAY_SIZE(palettes);
 
 CRGBPalette16 currentPalette = palettes[currentPaletteIndex];
-
-class Cell {
-  public:
-    boolean alive = true;
-    boolean prev = true;
-    byte hue = 6;
-    byte brightness;
-};
 
 Cell world[kMatrixWidth][kMatrixHeight];
 long density = 50;
@@ -167,6 +185,59 @@ void powerOff() {
 void cyclePalette() {
   currentPaletteIndex = (currentPaletteIndex + 1) % paletteCount;
   currentPalette = palettes[currentPaletteIndex];
+
+  showingIndicator = true;
+  sinceIndicatorShown = 0;
+  sprintf(indicatorText, paletteNames[currentPaletteIndex]);
+}
+
+void togglePaused() {
+  isPaused = !isPaused;
+
+  showingIndicator = isPaused;
+  sinceIndicatorShown = 0;
+  sprintf(indicatorText, "Paused");
+}
+
+void adjustSpeed(bool up) {
+  if (up) {
+    if (delayIndex < delayCount - 1) {
+      delayIndex++;
+    }
+  }
+  else if (delayIndex > 0) {
+    delayIndex--;
+  }
+
+  showingIndicator = true;
+  sinceIndicatorShown = 0;
+  uint8_t level = ((float) delayIndex / (float) (delayCount - 1)) * 100;
+  if (level < 1) level = 1;
+  sprintf(indicatorText, "Spd:%3d%%", level); // 100%
+}
+
+void adjustBlur(bool up) {
+  if (up) {
+    if (blurIndex < blurCount - 1) {
+      blurIndex++;
+    }
+  }
+  else if (blurIndex > 0) {
+    blurIndex--;
+  }
+
+  showingIndicator = true;
+  sinceIndicatorShown = 0;
+  uint8_t level = blurMap[blurIndex] * 100.0f;
+  sprintf(indicatorText, "Blr:%3d%%", level); // 100%
+}
+
+void showBrightnessIndicator() {
+  showingIndicator = true;
+  sinceIndicatorShown = 0;
+  uint8_t level = ((float) brightnessIndex / (float) (brightnessCount - 1)) * 100;
+  if (level < 1) level = 1;
+  sprintf(indicatorText, "%3d%%", level); // 100%
 }
 
 void cycleBrightness() {
@@ -177,6 +248,9 @@ void cycleBrightness() {
 
   if (brightnessIndex == 0) {
     powerOff();
+  }
+  else {
+    showBrightnessIndicator();
   }
 }
 
@@ -193,17 +267,8 @@ void adjustBrightness(bool up) {
   Serial.print("Brightness: ");
   Serial.println(brightnessMap[brightnessIndex]);
   matrix.setBrightness(brightnessMap[brightnessIndex]);
-}
 
-void setup() {
-  Serial.begin(9600);
-  matrix.addLayer(&backgroundLayer);
-  matrix.begin();
-  matrix.setBrightness(brightnessMap[brightnessIndex]);
-  randomFillWorld();
-
-  // Initialize the IR receiver
-  irReceiver.enableIRIn();
+  showBrightnessIndicator();
 }
 
 void printCursorPosition() {
@@ -222,7 +287,7 @@ void handleInput() {
       break;
 
     case InputCommand::PlayMode:
-      isPaused = !isPaused;
+      togglePaused();
       break;
 
     case InputCommand::BrightnessUp:
@@ -257,10 +322,7 @@ void handleInput() {
       break;
 
     case InputCommand::Select:
-      if (!isPaused) {
-        isPaused = true;
-      }
-      else {
+      if (isPaused) {
         // toggle the cell at the cursor position
         boolean alive = !world[cursorX][cursorY].alive;
 
@@ -268,6 +330,9 @@ void handleInput() {
         world[cursorX][cursorY].brightness = alive ? 255 : 0;
         world[cursorX][cursorY].prev = alive;
         world[cursorX][cursorY].hue = 0;
+      }
+      else {
+        togglePaused();
       }
       break;
 
@@ -278,8 +343,7 @@ void handleInput() {
         printCursorPosition();
       }
       else {
-        if (currentDelay > 0)
-          currentDelay--;
+        adjustSpeed(true);
       }
       break;
 
@@ -290,27 +354,29 @@ void handleInput() {
         printCursorPosition();
       }
       else {
-        if (currentDelay < 255)
-          currentDelay++;
+        adjustSpeed(false);
       }
       break;
 
     case InputCommand::Left:
-      isPaused = true;
-      if (cursorX > 0)
-        cursorX--;
-      printCursorPosition();
+      if (isPaused) {
+        if (cursorX > 0)
+          cursorX--;
+        printCursorPosition();
+      }
+      else {
+        adjustBlur(false);
+      }
       break;
 
     case InputCommand::Right:
       if (isPaused) {
-        isPaused = true;
         if (cursorX < kMatrixWidth - 1)
           cursorX++;
         printCursorPosition();
       }
       else {
-        blur = !blur;
+        adjustBlur(true);
       }
       break;
 
@@ -320,63 +386,106 @@ void handleInput() {
   }
 }
 
+void drawCursor() {
+  backgroundLayer.drawPixel(cursorX - 1, cursorY, CRGB(CRGB::White));
+  backgroundLayer.drawPixel(cursorX + 1, cursorY, CRGB(CRGB::White));
+  backgroundLayer.drawPixel(cursorX, cursorY - 1, CRGB(CRGB::White));
+  backgroundLayer.drawPixel(cursorX, cursorY + 1, CRGB(CRGB::White));
+}
+
+void setup() {
+  Serial.begin(9600);
+  matrix.addLayer(&backgroundLayer);
+  matrix.addLayer(&indexedLayer);
+  matrix.begin();
+  matrix.setBrightness(brightnessMap[brightnessIndex]);
+
+  backgroundLayer.enableColorCorrection(true);
+
+  indexedLayer.setFont(font3x5);
+  indexedLayer.setIndexedColor(1, CRGB(CRGB::White));
+  indexedLayer.enableColorCorrection(true);
+  indexedLayer.setIndexedColor(1, {255, 255, 255});
+
+  randomFillWorld();
+
+  // Initialize the IR receiver
+  irReceiver.enableIRIn();
+}
+
 void loop() {
   buffer = backgroundLayer.backBuffer();
+
+  indexedLayer.fillScreen(0);
 
   handleInput();
 
   // Display current generation
   for (int i = 0; i < kMatrixWidth; i++) {
     for (int j = 0; j < kMatrixHeight; j++) {
-      if (blur) {
-        buffer[XY(i, j)] = ColorFromPalette(currentPalette, world[i][j].hue * 4, world[i][j].brightness);
-      }
-      else if (world[i][j].alive) {
-        buffer[XY(i, j)] = ColorFromPalette(currentPalette, world[i][j].hue * 4, world[i][j].brightness);
-      }
-      else {
-        buffer[XY(i, j)] = (CRGB)CRGB::Black;
-      }
+      buffer[XY(i, j)] = ColorFromPalette(currentPalette, world[i][j].hue * 4, world[i][j].brightness);
     }
   }
 
   if (isPaused) {
-    backgroundLayer.drawPixel(cursorX, cursorY, CRGB(CRGB::White));
+    drawCursor();
   }
   else {
-    isCleared = false;
+    if (sinceLastUpdate >= delayMap[delayIndex]) {
+      isCleared = false;
 
-    // Birth and death cycle
-    for (int x = 0; x < kMatrixWidth; x++) {
-      for (int y = 0; y < kMatrixHeight; y++) {
-        // Default is for cell to stay the same
-        if (world[x][y].brightness > 0 && world[x][y].prev == 0)
-          world[x][y].brightness *= blurAmount;
-        int count = neighbours(x, y);
-        if (count == 3 && world[x][y].prev == 0) {
-          // A new cell is born
-          world[x][y].alive = true;
-          world[x][y].hue += 2;
-          world[x][y].brightness = 255;
-        }
-        else if ((count < 2 || count > 3) && world[x][y].prev) {
-          // Cell dies
-          world[x][y].alive = false;
+      boolean newBirth = false;
+
+      // Birth and death cycle
+      for (int x = 0; x < kMatrixWidth; x++) {
+        for (int y = 0; y < kMatrixHeight; y++) {
+          // Default is for cell to stay the same
+          if (world[x][y].brightness > 0 && world[x][y].prev == 0)
+            world[x][y].brightness *= blurMap[blurIndex];
+          int count = neighbours(x, y);
+          if (count == 3 && world[x][y].prev == 0) {
+            // A new cell is born
+            world[x][y].alive = true;
+            if (world[x][y].hue < 60)
+              world[x][y].hue++;
+            world[x][y].brightness = 255;
+            newBirth = true;
+          }
+          else if ((count < 2 || count > 3) && world[x][y].prev) {
+            // Cell dies
+            world[x][y].alive = false;
+          }
         }
       }
-    }
 
-    // Copy next generation into place
-    for (int x = 0; x < kMatrixWidth; x++) {
-      for (int y = 0; y < kMatrixHeight; y++) {
-        world[x][y].prev = world[x][y].alive;
+      // Copy next generation into place
+      for (int x = 0; x < kMatrixWidth; x++) {
+        for (int y = 0; y < kMatrixHeight; y++) {
+          world[x][y].prev = world[x][y].alive;
+        }
       }
-    }
 
-    generation++;
+      generation++;
+
+      if (!newBirth && autoReset) {
+        if (cyclesWithoutBirth++ > 250) {
+          randomFillWorld();
+          cyclesWithoutBirth = 0;
+        }
+      }
+
+      sinceLastUpdate = 0;
+    }
   }
 
-  backgroundLayer.swapBuffers();
+  if (showingIndicator && sinceIndicatorShown < indicatorDuration) {
+    indexedLayer.drawString(0, 0, 1, indicatorText);
+  }
+  else {
+    showingIndicator = false;
+  }
 
-  delay(currentDelay);
+  indexedLayer.swapBuffers();
+
+  backgroundLayer.swapBuffers();
 }
