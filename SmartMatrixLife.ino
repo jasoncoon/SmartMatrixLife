@@ -69,6 +69,8 @@ uint8_t brightnessIndex = 2;
 const uint8_t brightnessCount = 5;
 const uint8_t brightnessMap[brightnessCount] = { 16, 32, 64, 128, 255 };
 
+uint8_t currentDelay = 33;
+
 CRGBPalette16 palettes[] = {
   RainbowColors_p,
   RainbowStripeColors_p,
@@ -204,6 +206,13 @@ void setup() {
   irReceiver.enableIRIn();
 }
 
+void printCursorPosition() {
+  Serial.print("Cursor: ");
+  Serial.print(cursorX);
+  Serial.print(",");
+  Serial.println(cursorY);
+}
+
 void handleInput() {
   InputCommand command = readCommand(defaultHoldDelay);
 
@@ -248,13 +257,13 @@ void handleInput() {
       break;
 
     case InputCommand::Select:
-      if(!isPaused) {
+      if (!isPaused) {
         isPaused = true;
       }
       else {
         // toggle the cell at the cursor position
         boolean alive = !world[cursorX][cursorY].alive;
-        
+
         world[cursorX][cursorY].alive = alive;
         world[cursorX][cursorY].brightness = alive ? 255 : 0;
         world[cursorX][cursorY].prev = alive;
@@ -263,43 +272,42 @@ void handleInput() {
       break;
 
     case InputCommand::Up:
-      isPaused = true;
-      if (cursorY > 0)
-        cursorY--;
-      Serial.print("Cursor: ");
-      Serial.print(cursorX);
-      Serial.print(",");
-      Serial.println(cursorY);
+      if (isPaused) {
+        if (cursorY > 0)
+          cursorY--;
+        printCursorPosition();
+      }
+      else {
+        if (currentDelay > 0)
+          currentDelay--;
+      }
       break;
 
     case InputCommand::Down:
-      isPaused = true;
-      if (cursorY < kMatrixHeight - 1)
-        cursorY++;
-      Serial.print("Cursor: ");
-      Serial.print(cursorX);
-      Serial.print(",");
-      Serial.println(cursorY);
+      if (isPaused) {
+        isPaused = true;
+        if (cursorY < kMatrixHeight - 1)
+          cursorY++;
+        printCursorPosition();
+      }
+      else {
+        if (currentDelay < 255)
+          currentDelay++;
+      }
       break;
 
     case InputCommand::Left:
       isPaused = true;
       if (cursorX > 0)
         cursorX--;
-      Serial.print("Cursor: ");
-      Serial.print(cursorX);
-      Serial.print(",");
-      Serial.println(cursorY);
+      printCursorPosition();
       break;
 
     case InputCommand::Right:
       isPaused = true;
       if (cursorX < kMatrixWidth - 1)
         cursorX++;
-      Serial.print("Cursor: ");
-      Serial.print(cursorX);
-      Serial.print(",");
-      Serial.println(cursorY);
+      printCursorPosition();
       break;
 
     case InputCommand::None:
@@ -365,5 +373,6 @@ void loop() {
   }
 
   backgroundLayer.swapBuffers();
-  LEDS.delay(33);
+
+  delay(currentDelay);
 }
