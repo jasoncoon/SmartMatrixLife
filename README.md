@@ -12,12 +12,14 @@ SmartMatrix: http://pixelmatix.com
 ##### Controls (for all remotes):
 
 * When not paused:
-  * The arrow and select buttons will pause the simulation.
-  * The "Randomly Fill World" button will fill the world with random cells.
+  * The up and down arrow buttons adjust the simulation speed.
+  * The pause/play and select buttons pause the simulation.
+  * The "Randomly Fill World" button clears and fills the world with random cells.
 * When paused: 
-  * The arrow buttons will move the cursor.
-  * The select button will toggle the highlighted cell.
-  * The "Randomly Fill World" button will toggle between clearing and randomly filling the world.
+  * The pause/play button will unpause the simulation.
+  * The arrow buttons move the cursor.
+  * The select button toggles the highlighted cell.
+  * The "Randomly Fill World" button toggles between clearing and randomly filling the world.
 
 ##### Supported Infrared Remote Controls:
 
