@@ -52,20 +52,17 @@ SMARTMATRIX_ALLOCATE_BACKGROUND_LAYER(backgroundLayer, kMatrixWidth, kMatrixHeig
 rgb24 *buffer;
 
 // blur between each frame of the simulation
-boolean blur = true;
+boolean blur = false;
 
 // adjust the amount of blur
 float blurAmount = 0.5;
 
-boolean randomBlur = true;
-
-// alternate between blurred and not blurred each time a new world is filled
-boolean alternateBlur = true;
-
-// switch to a random palette each time a new world is filled
-boolean switchPalette = true;
-
 boolean isPaused = false;
+
+boolean isCleared = false;
+
+uint8_t cursorX = 0;
+uint8_t cursorY = 0;
 
 uint8_t brightnessIndex = 2;
 
@@ -92,8 +89,8 @@ CRGBPalette16 currentPalette = palettes[currentPaletteIndex];
 
 class Cell {
   public:
-    byte alive =  1;
-    byte prev =  1;
+    boolean alive = true;
+    boolean prev = true;
     byte hue = 6;
     byte brightness;
 };
@@ -104,17 +101,32 @@ int generation = 0;
 
 void randomFillWorld() {
   generation = 0;
+  isCleared = false;
 
   for (int i = 0; i < kMatrixWidth; i++) {
     for (int j = 0; j < kMatrixHeight; j++) {
       if (random(100) < (unsigned long)density) {
-        world[i][j].alive = 1;
+        world[i][j].alive = true;
         world[i][j].brightness = 255;
       }
       else {
-        world[i][j].alive = 0;
+        world[i][j].alive = false;
         world[i][j].brightness = 0;
       }
+      world[i][j].prev = world[i][j].alive;
+      world[i][j].hue = 0;
+    }
+  }
+}
+
+void clearWorld() {
+  generation = 0;
+  isCleared = true;
+
+  for (int i = 0; i < kMatrixWidth; i++) {
+    for (int j = 0; j < kMatrixHeight; j++) {
+      world[i][j].alive = false;
+      world[i][j].brightness = 0;
       world[i][j].prev = world[i][j].alive;
       world[i][j].hue = 0;
     }
@@ -196,11 +208,6 @@ void handleInput() {
   InputCommand command = readCommand(defaultHoldDelay);
 
   switch (command) {
-    case InputCommand::RandomFillWorld:
-      fill_solid((CRGB*)buffer, NUM_LEDS, CRGB::Black);
-      randomFillWorld();
-      break;
-
     case InputCommand::Palette:
       cyclePalette();
       break;
@@ -224,6 +231,80 @@ void handleInput() {
     case InputCommand::Power:
       powerOff();
       break;
+
+    case InputCommand::RandomFillWorld:
+      if (isPaused) {
+        if (isCleared) {
+          randomFillWorld();
+        }
+        else {
+          clearWorld();
+        }
+      }
+      else {
+        fill_solid((CRGB*)buffer, NUM_LEDS, CRGB::Black);
+        randomFillWorld();
+      }
+      break;
+
+    case InputCommand::Select:
+      if(!isPaused) {
+        isPaused = true;
+      }
+      else {
+        // toggle the cell at the cursor position
+        boolean alive = !world[cursorX][cursorY].alive;
+        
+        world[cursorX][cursorY].alive = alive;
+        world[cursorX][cursorY].brightness = alive ? 255 : 0;
+        world[cursorX][cursorY].prev = alive;
+        world[cursorX][cursorY].hue = 0;
+      }
+      break;
+
+    case InputCommand::Up:
+      isPaused = true;
+      if (cursorY > 0)
+        cursorY--;
+      Serial.print("Cursor: ");
+      Serial.print(cursorX);
+      Serial.print(",");
+      Serial.println(cursorY);
+      break;
+
+    case InputCommand::Down:
+      isPaused = true;
+      if (cursorY < kMatrixHeight - 1)
+        cursorY++;
+      Serial.print("Cursor: ");
+      Serial.print(cursorX);
+      Serial.print(",");
+      Serial.println(cursorY);
+      break;
+
+    case InputCommand::Left:
+      isPaused = true;
+      if (cursorX > 0)
+        cursorX--;
+      Serial.print("Cursor: ");
+      Serial.print(cursorX);
+      Serial.print(",");
+      Serial.println(cursorY);
+      break;
+
+    case InputCommand::Right:
+      isPaused = true;
+      if (cursorX < kMatrixWidth - 1)
+        cursorX++;
+      Serial.print("Cursor: ");
+      Serial.print(cursorX);
+      Serial.print(",");
+      Serial.println(cursorY);
+      break;
+
+    case InputCommand::None:
+    default:
+      break;
   }
 }
 
@@ -238,7 +319,7 @@ void loop() {
       if (blur) {
         buffer[XY(i, j)] = ColorFromPalette(currentPalette, world[i][j].hue * 4, world[i][j].brightness);
       }
-      else if (world[i][j].alive == 1) {
+      else if (world[i][j].alive) {
         buffer[XY(i, j)] = ColorFromPalette(currentPalette, world[i][j].hue * 4, world[i][j].brightness);
       }
       else {
@@ -247,7 +328,12 @@ void loop() {
     }
   }
 
-  if (!isPaused) {
+  if (isPaused) {
+    backgroundLayer.drawPixel(cursorX, cursorY, CRGB(CRGB::White));
+  }
+  else {
+    isCleared = false;
+
     // Birth and death cycle
     for (int x = 0; x < kMatrixWidth; x++) {
       for (int y = 0; y < kMatrixHeight; y++) {
@@ -257,13 +343,13 @@ void loop() {
         int count = neighbours(x, y);
         if (count == 3 && world[x][y].prev == 0) {
           // A new cell is born
-          world[x][y].alive = 1;
+          world[x][y].alive = true;
           world[x][y].hue += 2;
           world[x][y].brightness = 255;
         }
-        else if ((count < 2 || count > 3) && world[x][y].prev == 1) {
+        else if ((count < 2 || count > 3) && world[x][y].prev) {
           // Cell dies
-          world[x][y].alive = 0;
+          world[x][y].alive = false;
         }
       }
     }
