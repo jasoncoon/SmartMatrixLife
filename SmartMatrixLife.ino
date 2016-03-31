@@ -285,7 +285,6 @@ void handleInput() {
 
     case InputCommand::Down:
       if (isPaused) {
-        isPaused = true;
         if (cursorY < kMatrixHeight - 1)
           cursorY++;
         printCursorPosition();
@@ -304,10 +303,15 @@ void handleInput() {
       break;
 
     case InputCommand::Right:
-      isPaused = true;
-      if (cursorX < kMatrixWidth - 1)
-        cursorX++;
-      printCursorPosition();
+      if (isPaused) {
+        isPaused = true;
+        if (cursorX < kMatrixWidth - 1)
+          cursorX++;
+        printCursorPosition();
+      }
+      else {
+        blur = !blur;
+      }
       break;
 
     case InputCommand::None:
