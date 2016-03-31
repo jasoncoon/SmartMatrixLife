@@ -9,7 +9,7 @@ Conway's Game of Life on a SmartMatrix 32x32 RGB LED display using the FastLED l
 
 SmartMatrix: http://pixelmatix.com
 
-Controls (for all remotes):
+##### Controls (for all remotes):
 
 * When not paused:
   * The arrow and select buttons will pause the simulation.
@@ -22,7 +22,7 @@ Controls (for all remotes):
 ##### Supported Infrared Remote Controls:
 
 ###### [SparkFun](https://www.sparkfun.com/products/11759)
-![SparkFun Remote Control](https://cdn.sparkfun.com/r/92-92/assets/parts/7/9/8/6/11759-01.jpg "SparkFun Remote Control")
+[![SparkFun Remote Control](https://cdn.sparkfun.com/r/92-92/assets/parts/7/9/8/6/11759-01.jpg "SparkFun Remote Control")](https://www.sparkfun.com/products/11759)
 
 Controls (left to right, top to bottom):
 
@@ -42,7 +42,7 @@ Controls (left to right, top to bottom):
 -------------------------------------------------------------------
 
 ###### [SmartMatrix](http://docs.pixelmatix.com/SmartMatrix/postkick.html)
-![SmartMatrix Remote Control](SmartMatrix-Remote.png "SmartMatrix Remote Control")
+[![SmartMatrix Remote Control](SmartMatrix-Remote.png "SmartMatrix Remote Control")](http://docs.pixelmatix.com/SmartMatrix/postkick.html)
 
 Controls (left to right, top to bottom):
 
@@ -62,7 +62,7 @@ Controls (left to right, top to bottom):
 --------------------------------------------------------
 
 ###### [Adafruit](https://www.adafruit.com/products/389)
-![Adafruit Remote Control](https://cdn-shop.adafruit.com/145x109/389-03.jpg "Adafruit Remote Control")
+[![Adafruit Remote Control](https://cdn-shop.adafruit.com/145x109/389-03.jpg "Adafruit Remote Control")](https://www.adafruit.com/products/389)
 
 Controls (left to right, top to bottom):
 
