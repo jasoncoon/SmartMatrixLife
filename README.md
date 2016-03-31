@@ -13,6 +13,7 @@ SmartMatrix: http://pixelmatix.com
 
 * When not paused:
   * The up and down arrow buttons adjust the simulation speed.
+  * The right arrow button toggles a blurring effect on/off.
   * The pause/play and select buttons pause the simulation.
   * The "Randomly Fill World" button clears and fills the world with random cells.
 * When paused: 
