@@ -169,7 +169,10 @@ uint16_t XY( uint8_t x, uint8_t y) {
 }
 
 void powerOff() {
-  fill_solid((CRGB*)buffer, NUM_LEDS, CRGB::Black);
+  indexedLayer.fillScreen(0);
+  indexedLayer.swapBuffers();
+  
+  backgroundLayer.fillScreen({0,0,0});
   backgroundLayer.swapBuffers();
   buffer = backgroundLayer.backBuffer();
 
